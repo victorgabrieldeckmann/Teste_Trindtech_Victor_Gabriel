@@ -1,5 +1,5 @@
 /vendor/
-node_modules/
+/node_modules/
 npm-debug.log
 yarn-error.log
 
@@ -22,6 +22,8 @@ Homestead.json
 /.vagrant
 .phpunit.result.cache
 /.phpunit.cache
+/.fleet
+/.idea
 
 /public/build
 /storage/pail
