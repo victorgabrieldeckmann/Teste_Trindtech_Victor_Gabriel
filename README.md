@@ -23,6 +23,23 @@ A aplicação fica disponível em `http://localhost:8000`.
 
 A senha é transformada em hash pelo `DemoUserSeeder` antes de ser armazenada.
 
+## Uso do painel
+
+Após o login, a tela inicial permite:
+
+- alterar apenas o nome exibido de cada indicador;
+- sincronizar uma série com o SGS do Banco Central;
+- excluir um indicador e seus próprios valores;
+- restaurar IPCA e IGP-M caso ambos tenham sido excluídos;
+- filtrar a consulta por indicador, data inicial e data final;
+- consultar os mesmos pontos na tabela e no gráfico de linha;
+- visualizar o acumulado, a maior e a menor variação do período filtrado.
+
+No primeiro acesso, o IPCA e o período completo ficam selecionados. Se o IPCA
+for excluído, o painel seleciona o indicador restante. Sem indicadores ou sem
+valores no período, a tela apresenta um estado vazio. No estado sem indicadores,
+o botão de restauração recria as séries padrão e tenta sincronizá-las novamente.
+
 ## Testes
 
 ```bash
