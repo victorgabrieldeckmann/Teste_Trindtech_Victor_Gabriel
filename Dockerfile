@@ -1,4 +1,4 @@
-FROM php:8.4-cli
+FROM php:8.4-cli@sha256:d63e8b80cd4c6cfd01cfa7c910522e299cdc7ca1a2b6d6563db48df3c17e6c55
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -12,7 +12,7 @@ RUN apt-get update \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2@sha256:ca11f643d7791ebdd90a34fc20caf11380d434007ae539a9ea75cd9212e13dca /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 

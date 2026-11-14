@@ -19,9 +19,10 @@ class IndicatorSynchronizationController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return back()->with(
-            'success',
-            "{$indicator->name} sincronizado: {$points} pontos processados.",
-        );
+        $pointsMessage = $points === 1
+            ? '1 ponto processado'
+            : "{$points} pontos processados";
+
+        return back()->with('success', "{$indicator->name} sincronizado: {$pointsMessage}.");
     }
 }

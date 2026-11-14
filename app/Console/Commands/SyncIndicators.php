@@ -37,7 +37,11 @@ class SyncIndicators extends Command
         foreach ($indicators as $indicator) {
             try {
                 $points = $synchronizer->synchronize($indicator);
-                $this->info("{$indicator->name}: {$points} pontos processados.");
+                $pointsMessage = $points === 1
+                    ? '1 ponto processado'
+                    : "{$points} pontos processados";
+
+                $this->info("{$indicator->name}: {$pointsMessage}.");
             } catch (SgsSynchronizationException $exception) {
                 $failed = true;
                 $this->error($exception->getMessage());

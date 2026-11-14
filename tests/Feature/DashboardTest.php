@@ -254,7 +254,7 @@ class DashboardTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->post(route('indicators.synchronize', $indicator))
             ->assertRedirect()
-            ->assertSessionHas('success', 'IPCA sincronizado: 1 pontos processados.');
+            ->assertSessionHas('success', 'IPCA sincronizado: 1 ponto processado.');
 
         $this->assertDatabaseHas('indicator_values', [
             'indicator_id' => $indicator->id,

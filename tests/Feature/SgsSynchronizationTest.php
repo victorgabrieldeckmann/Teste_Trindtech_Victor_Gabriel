@@ -12,6 +12,7 @@ use Database\Seeders\OfflineIndicatorValuesSeeder;
 use Database\Seeders\OnlineIndicatorValuesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -81,7 +82,7 @@ class SgsSynchronizationTest extends TestCase
         ]);
     }
 
-    public function test_synchronization_removes_points_missing_from_the_current_sgs_period(): void
+    public function test_synchronization_preserves_points_missing_from_the_current_response(): void
     {
         $indicator = $this->createIndicator();
         $indicator->values()->createMany([
@@ -93,15 +94,16 @@ class SgsSynchronizationTest extends TestCase
             ['data' => '01/01/2025', 'valor' => '0.17'],
         ]);
 
-        $this->assertDatabaseCount('indicator_values', 1);
+        $this->assertDatabaseCount('indicator_values', 2);
         $this->assertDatabaseHas('indicator_values', [
             'indicator_id' => $indicator->id,
             'reference_date' => '2025-01-01',
             'value' => '0.1700',
         ]);
-        $this->assertDatabaseMissing('indicator_values', [
+        $this->assertDatabaseHas('indicator_values', [
             'indicator_id' => $indicator->id,
             'reference_date' => '2025-02-01',
+            'value' => '1.3100',
         ]);
     }
 
@@ -197,7 +199,10 @@ class SgsSynchronizationTest extends TestCase
     public function test_the_online_seeder_does_not_keep_a_partial_import(): void
     {
         $this->seed(IndicatorSeeder::class);
-        Http::fake(function (Request $request) {
+        $initialTransactionLevel = DB::transactionLevel();
+        Http::fake(function (Request $request) use ($initialTransactionLevel) {
+            $this->assertSame($initialTransactionLevel, DB::transactionLevel());
+
             if (str_contains($request->url(), '.189/')) {
                 return Http::response([], 503);
             }
@@ -227,7 +232,7 @@ class SgsSynchronizationTest extends TestCase
         ]);
 
         $this->artisan('sgs:sync')
-            ->expectsOutputToContain('1 pontos processados')
+            ->expectsOutputToContain('1 ponto processado')
             ->assertSuccessful();
 
         $this->assertDatabaseCount('indicator_values', 2);

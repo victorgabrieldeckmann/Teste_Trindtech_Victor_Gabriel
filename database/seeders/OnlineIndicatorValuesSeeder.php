@@ -11,11 +11,23 @@ class OnlineIndicatorValuesSeeder extends Seeder
 {
     public function run(SgsSynchronizationService $synchronizer): void
     {
-        DB::transaction(function () use ($synchronizer): void {
-            Indicator::query()
-                ->whereIn('sgs_code', [433, 189])
-                ->orderBy('id')
-                ->each(fn (Indicator $indicator) => $synchronizer->synchronize($indicator));
+        $imports = Indicator::query()
+            ->whereIn('sgs_code', [433, 189])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Indicator $indicator): array => [
+                'indicator' => $indicator,
+                'rows' => $synchronizer->validatePayload(
+                    $indicator,
+                    $synchronizer->fetchPayload($indicator),
+                ),
+            ]);
+
+        DB::transaction(function () use ($imports, $synchronizer): void {
+            $imports->each(fn (array $import): int => $synchronizer->persistRows(
+                $import['indicator'],
+                $import['rows'],
+            ));
         });
     }
 }

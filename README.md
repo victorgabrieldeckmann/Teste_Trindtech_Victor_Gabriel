@@ -116,12 +116,11 @@ docker compose exec app php artisan sgs:sync 433
 ```
 
 O serviço valida o formato da resposta, as datas, os valores e a presença de
-datas repetidas antes de persistir o lote. O `upsert` insere ou atualiza os
-pontos recebidos e remove, dentro do período fixo, os pontos que não estão mais
-na resposta atual. Uma falha de conexão, resposta inválida ou erro de
-persistência gera uma mensagem e preserva os dados anteriores. Durante a carga
-online inicial, as duas séries são persistidas em uma única transação para não
-deixar uma importação parcial.
+datas repetidas antes de persistir o lote. O `upsert` insere datas novas e
+atualiza os valores das datas existentes sem gerar duplicações. Falhas de
+conexão ou respostas inválidas preservam os dados já armazenados. Na carga
+online inicial, as duas respostas são obtidas e validadas antes de serem
+persistidas em uma única transação, evitando uma importação parcial.
 
 ## Modelo de dados e persistência
 
