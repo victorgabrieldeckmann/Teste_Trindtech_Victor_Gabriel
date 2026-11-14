@@ -11,10 +11,17 @@ cp .env.example .env
 docker compose build
 docker compose run --rm app php artisan key:generate
 docker compose up -d
-docker compose exec app php artisan migrate
+docker compose exec app php artisan migrate --seed
 ```
 
 A aplicação fica disponível em `http://localhost:8000`.
+
+### Credenciais de demonstração
+
+- E-mail: `demo@trindtech.test`
+- Senha: `Trindtech@2026`
+
+A senha é transformada em hash pelo `DemoUserSeeder` antes de ser armazenada.
 
 ## Testes
 
