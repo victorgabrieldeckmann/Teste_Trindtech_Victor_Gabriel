@@ -1,30 +1,23 @@
 # Painel de Indicadores Econômicos
 
-Aplicação web desenvolvida para o teste técnico da Trindtech. O painel autentica
-o usuário, importa as séries IPCA e IGP-M do Sistema Gerenciador de Séries
-Temporais (SGS) do Banco Central e permite consultar os dados armazenados no
-MySQL por período.
+Aplicação do teste técnico da Trindtech para consultar IPCA e IGP-M. Os dados
+são obtidos na API SGS do Banco Central, armazenados no MySQL e exibidos em uma
+tabela e em um gráfico de linha.
 
 ## Tecnologias
 
 - PHP 8.4 e Laravel 12;
 - MySQL 8.4;
-- Blade e Bootstrap 5.3;
-- Chart.js 4.4;
+- Blade, Bootstrap 5.3 e Chart.js 4.4;
 - Docker Compose.
-
-Bootstrap e Chart.js são carregados por CDN no navegador. Portanto, a
-apresentação visual completa requer acesso à internet mesmo quando a carga
-offline do SGS é utilizada.
 
 ## Executando o projeto
 
 ### Pré-requisitos
 
 - Docker;
-- Docker Compose.
-
-### Instalação padrão
+- Docker Compose;
+- acesso à internet para baixar imagens e dependências.
 
 Na raiz do repositório, execute:
 
@@ -36,8 +29,8 @@ docker compose up -d
 docker compose exec app php artisan migrate --seed
 ```
 
-O último comando cria as tabelas, o usuário de demonstração, os dois
-indicadores e consulta os dados oficiais no SGS. Depois, acesse
+O último comando cria o banco, o usuário de demonstração, os indicadores e
+consulta os dados oficiais no SGS. A aplicação estará disponível em
 `http://localhost:8000`.
 
 ### Credenciais de demonstração
@@ -45,60 +38,44 @@ indicadores e consulta os dados oficiais no SGS. Depois, acesse
 - E-mail: `demo@trindtech.test`
 - Senha: `Trindtech@2026`
 
-A senha em texto simples acima existe apenas para acesso de demonstração. O
-`DemoUserSeeder` usa o hash de senhas do Laravel antes de armazená-la.
+A senha é armazenada como hash pelo Laravel. Não há cadastro de novos usuários.
 
 ### Carga inicial sem acesso ao SGS
 
-Se a API estiver indisponível, defina a variável abaixo no `.env` antes de
-executar as migrations:
+Se a API estiver indisponível, altere a seguinte variável no `.env`:
 
 ```dotenv
 SGS_SEED_MODE=offline
 ```
 
-Em seguida, faça a carga normalmente:
+Depois, execute:
 
 ```bash
 docker compose exec app php artisan migrate --seed
 ```
 
-O modo `offline` utiliza as respostas oficiais incluídas em
-`database/data/sgs` e passa pelo mesmo processo de validação e persistência da
-carga online. A opção `SGS_SEED_MODE=skip` cadastra o usuário e os indicadores
-sem carregar valores, sendo destinada a desenvolvimento e testes específicos.
+Esse modo utiliza as respostas oficiais incluídas em `database/data/sgs` e
+passa pela mesma validação da carga online. Ele dispensa apenas o acesso ao SGS;
+o download inicial das imagens Docker ainda requer internet.
 
 ## Funcionalidades
 
 Após o login, o painel permite:
 
 - consultar IPCA (série 433) e IGP-M (série 189);
-- filtrar uma série por data inicial e final;
-- comparar na tabela e no gráfico exatamente os mesmos pontos lidos do MySQL;
-- visualizar o acumulado composto, a maior e a menor variação do período;
-- identificar visualmente na tabela os pontos de maior e menor variação;
-- alterar somente o nome exibido de um indicador, mantendo seu código SGS;
-- sincronizar novamente uma série sem duplicar suas datas;
-- excluir um indicador e somente os valores associados a ele;
-- restaurar e sincronizar as duas séries padrão quando ambas forem excluídas.
+- filtrar por indicador, data inicial e data final;
+- visualizar os mesmos pontos do MySQL na tabela e no gráfico;
+- consultar o acumulado, a maior e a menor variação do período;
+- alterar somente o nome exibido, mantendo o código SGS;
+- sincronizar novamente uma série sem duplicar datas;
+- excluir um indicador e somente os valores vinculados a ele.
 
-No primeiro acesso, o IPCA e todo o intervalo do teste ficam selecionados. Se o
-IPCA for excluído, o indicador restante é selecionado. Um período sem valores e
-um painel sem indicadores possuem estados vazios próprios.
-
-Confirmações de exclusão são apresentadas em um modal. Mensagens de sucesso ou
-erro aparecem como notificações temporárias no canto superior direito e são
-empilhadas quando há mais de uma.
+No primeiro acesso, o IPCA e o período completo ficam selecionados. Se todos os
+indicadores forem excluídos, o painel permite restaurar IPCA e IGP-M.
 
 ## Sincronização com o Banco Central
 
-A fonte dos dados é a API pública SGS do Banco Central. As consultas usam o
-intervalo fixo de `01/01/2025` a `01/11/2026` definido no teste:
-
-- IPCA: série 433;
-- IGP-M: série 189.
-
-Endpoints oficiais utilizados:
+As duas séries usam o período fixo de `01/01/2025` a `01/11/2026`:
 
 - [IPCA — série 433](https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01/01/2025&dataFinal=01/11/2026);
 - [IGP-M — série 189](https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados?formato=json&dataInicial=01/01/2025&dataFinal=01/11/2026).
@@ -109,104 +86,61 @@ Para sincronizar todas as séries cadastradas:
 docker compose exec app php artisan sgs:sync
 ```
 
-Para sincronizar apenas uma série, informe seu código SGS:
+Para sincronizar somente uma série:
 
 ```bash
 docker compose exec app php artisan sgs:sync 433
 ```
 
-O serviço valida o formato da resposta, as datas, os valores e a presença de
-datas repetidas antes de persistir o lote. O `upsert` insere datas novas e
-atualiza os valores das datas existentes sem gerar duplicações. Falhas de
-conexão ou respostas inválidas preservam os dados já armazenados. Na carga
-online inicial, as duas respostas são obtidas e validadas antes de serem
-persistidas em uma única transação, evitando uma importação parcial.
+O serviço valida a resposta antes de gravá-la. O `upsert` insere datas novas e
+atualiza valores existentes sem criar duplicações. Falhas de conexão ou
+respostas inválidas preservam os dados já armazenados.
 
-## Modelo de dados e persistência
+## Modelo de dados
 
-O domínio utiliza três tabelas principais:
+- `users`: e-mail único e senha armazenada como hash;
+- `indicators`: código SGS único e nome exibido;
+- `indicator_values`: data em `DATE`, valor em `DECIMAL(10,4)` e vínculo com o
+  indicador.
 
-| Tabela | Dados principais | Regra relevante |
-| --- | --- | --- |
-| `users` | nome, e-mail e senha | e-mail único e senha com hash |
-| `indicators` | código SGS e nome | código SGS único |
-| `indicator_values` | indicador, data e valor | uma linha por indicador e data |
+A combinação `(indicator_id, reference_date)` é única e também identifica os
+registros atualizados pelo `upsert`. A chave estrangeira possui exclusão em
+cascata, portanto excluir um indicador remove somente os valores daquela série.
 
-`indicator_values.indicator_id` é uma chave estrangeira para `indicators.id`
-com exclusão em cascata. Assim, o MySQL remove os pontos do indicador excluído,
-sem afetar outra série.
-
-A restrição única composta em `(indicator_id, reference_date)` permite que IPCA
-e IGP-M tenham registros na mesma data, mas impede duas linhas da mesma série
-para aquela data. Essa combinação também é usada pelo `upsert`: uma data nova é
-inserida e uma data existente tem seu valor atualizado.
-
-Datas são armazenadas como `DATE`. Os valores usam `DECIMAL(10,4)`, evitando a
-imprecisão binária de tipos de ponto flutuante na persistência.
-
-## Organização da aplicação
-
-- `app/Http/Controllers`: autenticação, painel e ações dos indicadores;
-- `app/Http/Requests`: validação dos filtros e da edição do nome;
-- `app/Services/Sgs`: integração, validação e persistência dos dados do SGS;
-- `database/migrations`: estrutura e integridade do banco;
-- `database/seeders`: usuário, indicadores e cargas online/offline;
-- `resources/views`: telas Blade e componentes de modal e notificações;
-- `tests`: testes automatizados de integração e regras da aplicação.
-
-As rotas de consulta e gerenciamento são protegidas pelo middleware `auth`. O
-controller do painel busca uma única coleção ordenada de pontos e a envia tanto
-para a tabela quanto para o Chart.js, garantindo que ambos representem o mesmo
-indicador e período.
-
-## Testes e qualidade
-
-Execute a suíte automatizada com:
+## Testes
 
 ```bash
 docker compose exec app php artisan test
-```
-
-Os testes usam o banco MySQL isolado `trindtech_indicators_testing`, criado na
-primeira inicialização do contêiner. O banco de desenvolvimento não é apagado
-pela suíte.
-
-Para verificar o padrão de código:
-
-```bash
 docker compose exec app ./vendor/bin/pint --test
 ```
 
-A suíte cobre autenticação e acesso protegido, integridade do modelo, filtros,
-resumos, gerenciamento e restauração dos indicadores, sincronização, `upsert`,
-carga offline, falhas do SGS e correspondência dos dados da tabela com o
-gráfico.
+Os testes usam o banco isolado `trindtech_indicators_testing`; o banco de
+desenvolvimento não é apagado pela suíte.
 
 ## Comandos úteis
 
 ```bash
-# acompanhar os logs
+# acompanhar os logs da aplicação
 docker compose logs -f app
 
 # interromper os contêineres
 docker compose down
 
-# recriar o banco de desenvolvimento e executar a carga inicial
+# recriar o banco de desenvolvimento e repetir a carga inicial
 docker compose exec app php artisan migrate:fresh --seed
 ```
 
-O último comando apaga os dados do banco de desenvolvimento antes de recriá-lo.
+`migrate:fresh` apaga os dados atuais antes de recriar o banco.
 
 ## Solução de problemas
 
-- **Porta ocupada:** libere a porta `8000` ou altere seu mapeamento em
-  `compose.yaml`. O MySQL é acessível apenas pela rede interna do Compose.
-- **SGS indisponível na instalação:** selecione `SGS_SEED_MODE=offline` e repita
-  `php artisan migrate:fresh --seed` dentro do contêiner.
-- **Estilos ou gráfico não carregam:** verifique o acesso do navegador ao CDN
-  jsDelivr.
-- **Configuração alterada no `.env`:** execute
-  `docker compose exec app php artisan config:clear` antes de tentar novamente.
+- **Porta 8000 ocupada:** libere a porta ou altere seu mapeamento em
+  `compose.yaml`.
+- **SGS indisponível:** use `SGS_SEED_MODE=offline` e repita a carga inicial.
+- **Estilos ou gráfico não carregam:** Bootstrap e Chart.js são carregados pelo
+  CDN jsDelivr e dependem do acesso do navegador à internet.
+- **Alteração no `.env` sem efeito:** execute
+  `docker compose exec app php artisan config:clear`.
 
 ## Licença
 
