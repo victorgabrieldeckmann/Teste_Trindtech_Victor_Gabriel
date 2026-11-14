@@ -17,6 +17,12 @@ class SgsSynchronizationService
 {
     public function synchronize(Indicator $indicator): int
     {
+        return $this->synchronizeFromPayload($indicator, $this->fetchPayload($indicator));
+    }
+
+    /** @return array<mixed> */
+    public function fetchPayload(Indicator $indicator): array
+    {
         try {
             $response = Http::acceptJson()
                 ->timeout(config('sgs.timeout'))
@@ -41,13 +47,22 @@ class SgsSynchronizationService
             );
         }
 
-        return $this->synchronizeFromPayload($indicator, $payload);
+        return $payload;
     }
 
     /**
      * @param  array<mixed>  $payload
      */
     public function synchronizeFromPayload(Indicator $indicator, array $payload): int
+    {
+        return $this->persistRows($indicator, $this->validatePayload($indicator, $payload));
+    }
+
+    /**
+     * @param  array<mixed>  $payload
+     * @return list<array{indicator_id: int, reference_date: string, value: string, created_at: mixed, updated_at: mixed}>
+     */
+    public function validatePayload(Indicator $indicator, array $payload): array
     {
         if ($payload === [] || ! array_is_list($payload)) {
             throw new SgsSynchronizationException(
@@ -83,21 +98,21 @@ class SgsSynchronizationService
             ];
         }
 
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{indicator_id: int, reference_date: string, value: string, created_at: mixed, updated_at: mixed}>  $rows
+     */
+    public function persistRows(Indicator $indicator, array $rows): int
+    {
         try {
-            DB::transaction(function () use ($indicator, $rows, $seenDates): void {
+            DB::transaction(function () use ($rows): void {
                 IndicatorValue::query()->upsert(
                     $rows,
                     ['indicator_id', 'reference_date'],
                     ['value', 'updated_at'],
                 );
-
-                $indicator->values()
-                    ->whereBetween('reference_date', [
-                        config('sgs.start_date'),
-                        config('sgs.end_date'),
-                    ])
-                    ->whereNotIn('reference_date', array_keys($seenDates))
-                    ->delete();
             });
         } catch (QueryException $exception) {
             throw new SgsSynchronizationException(
