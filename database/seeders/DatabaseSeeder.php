@@ -18,5 +18,16 @@ class DatabaseSeeder extends Seeder
             IndicatorSeeder::class,
             DemoUserSeeder::class,
         ]);
+
+        $valuesSeeder = match (config('sgs.seed_mode')) {
+            'online' => OnlineIndicatorValuesSeeder::class,
+            'offline' => OfflineIndicatorValuesSeeder::class,
+            'skip' => null,
+            default => throw new \InvalidArgumentException('SGS_SEED_MODE deve ser online, offline ou skip.'),
+        };
+
+        if ($valuesSeeder !== null) {
+            $this->call($valuesSeeder);
+        }
     }
 }
