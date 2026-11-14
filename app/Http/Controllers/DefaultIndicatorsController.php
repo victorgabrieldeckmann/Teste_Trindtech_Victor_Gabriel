@@ -42,20 +42,21 @@ class DefaultIndicatorsController extends Controller
             ? '1 ponto processado'
             : "{$processedPoints} pontos processados";
 
-        $response = redirect()
+        if ($failedIndicators !== []) {
+            return redirect()
+                ->route('dashboard')
+                ->with(
+                    'error',
+                    'Os indicadores foram restaurados, mas não foi possível sincronizar agora: '
+                    .implode(', ', $failedIndicators).'.',
+                );
+        }
+
+        return redirect()
             ->route('dashboard')
             ->with(
                 'success',
                 "Indicadores padrão restaurados: {$pointsMessage}.",
             );
-
-        if ($failedIndicators !== []) {
-            $response->with(
-                'error',
-                'Não foi possível sincronizar agora: '.implode(', ', $failedIndicators).'.',
-            );
-        }
-
-        return $response;
     }
 }

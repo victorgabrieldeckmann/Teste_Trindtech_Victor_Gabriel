@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 class Indicator extends Model
 {
@@ -12,6 +13,15 @@ class Indicator extends Model
         'sgs_code',
         'name',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (Indicator $indicator): void {
+            if ($indicator->isDirty('sgs_code')) {
+                throw new LogicException('O código SGS de um indicador não pode ser alterado.');
+            }
+        });
+    }
 
     /**
      * @return HasMany<IndicatorValue, $this>

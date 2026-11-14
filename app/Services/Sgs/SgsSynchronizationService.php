@@ -6,8 +6,10 @@ use App\Exceptions\SgsSynchronizationException;
 use App\Models\Indicator;
 use App\Models\IndicatorValue;
 use DateTimeImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use JsonException;
 
@@ -81,11 +83,28 @@ class SgsSynchronizationService
             ];
         }
 
-        IndicatorValue::query()->upsert(
-            $rows,
-            ['indicator_id', 'reference_date'],
-            ['value', 'updated_at'],
-        );
+        try {
+            DB::transaction(function () use ($indicator, $rows, $seenDates): void {
+                IndicatorValue::query()->upsert(
+                    $rows,
+                    ['indicator_id', 'reference_date'],
+                    ['value', 'updated_at'],
+                );
+
+                $indicator->values()
+                    ->whereBetween('reference_date', [
+                        config('sgs.start_date'),
+                        config('sgs.end_date'),
+                    ])
+                    ->whereNotIn('reference_date', array_keys($seenDates))
+                    ->delete();
+            });
+        } catch (QueryException $exception) {
+            throw new SgsSynchronizationException(
+                "Não foi possível salvar a série SGS {$indicator->sgs_code}.",
+                previous: $exception,
+            );
+        }
 
         return count($rows);
     }
