@@ -7,6 +7,7 @@ use App\Models\IndicatorValue;
 use Database\Seeders\IndicatorSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
 use Tests\TestCase;
 
 class IndicatorPersistenceTest extends TestCase
@@ -80,6 +81,18 @@ class IndicatorPersistenceTest extends TestCase
             'sgs_code' => 433,
             'name' => 'Outro nome',
         ]);
+    }
+
+    public function test_the_sgs_code_cannot_be_changed_after_creation(): void
+    {
+        $indicator = Indicator::query()->create([
+            'sgs_code' => 433,
+            'name' => 'IPCA',
+        ]);
+
+        $this->expectException(LogicException::class);
+
+        $indicator->update(['sgs_code' => 189]);
     }
 
     public function test_the_same_indicator_cannot_have_two_values_on_the_same_date(): void

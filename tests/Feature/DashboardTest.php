@@ -322,8 +322,11 @@ class DashboardTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->post(route('indicators.restore'))
             ->assertRedirect(route('dashboard'))
-            ->assertSessionHas('success')
-            ->assertSessionHas('error');
+            ->assertSessionMissing('success')
+            ->assertSessionHas(
+                'error',
+                'Os indicadores foram restaurados, mas não foi possível sincronizar agora: IPCA, IGP-M.',
+            );
 
         $this->assertDatabaseCount('indicators', 2);
         $this->assertDatabaseCount('indicator_values', 0);

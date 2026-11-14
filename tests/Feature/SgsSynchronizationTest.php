@@ -9,6 +9,7 @@ use Closure;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\IndicatorSeeder;
 use Database\Seeders\OfflineIndicatorValuesSeeder;
+use Database\Seeders\OnlineIndicatorValuesSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -77,6 +78,30 @@ class SgsSynchronizationTest extends TestCase
             'indicator_id' => $indicator->id,
             'reference_date' => '2026-09-01',
             'value' => '0.9900',
+        ]);
+    }
+
+    public function test_synchronization_removes_points_missing_from_the_current_sgs_period(): void
+    {
+        $indicator = $this->createIndicator();
+        $indicator->values()->createMany([
+            ['reference_date' => '2025-01-01', 'value' => '0.1600'],
+            ['reference_date' => '2025-02-01', 'value' => '1.3100'],
+        ]);
+
+        $this->synchronizer()->synchronizeFromPayload($indicator, [
+            ['data' => '01/01/2025', 'valor' => '0.17'],
+        ]);
+
+        $this->assertDatabaseCount('indicator_values', 1);
+        $this->assertDatabaseHas('indicator_values', [
+            'indicator_id' => $indicator->id,
+            'reference_date' => '2025-01-01',
+            'value' => '0.1700',
+        ]);
+        $this->assertDatabaseMissing('indicator_values', [
+            'indicator_id' => $indicator->id,
+            'reference_date' => '2025-02-01',
         ]);
     }
 
@@ -167,6 +192,28 @@ class SgsSynchronizationTest extends TestCase
         $this->assertDatabaseCount('indicators', 2);
         $this->assertDatabaseCount('indicator_values', 44);
         Http::assertNothingSent();
+    }
+
+    public function test_the_online_seeder_does_not_keep_a_partial_import(): void
+    {
+        $this->seed(IndicatorSeeder::class);
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '.189/')) {
+                return Http::response([], 503);
+            }
+
+            return Http::response([
+                ['data' => '01/01/2025', 'valor' => '0.16'],
+            ]);
+        });
+
+        $this->expectException(SgsSynchronizationException::class);
+
+        try {
+            $this->seed(OnlineIndicatorValuesSeeder::class);
+        } finally {
+            $this->assertDatabaseCount('indicator_values', 0);
+        }
     }
 
     public function test_the_command_synchronizes_all_persisted_indicators(): void
