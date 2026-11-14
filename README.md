@@ -16,5 +16,15 @@ docker compose exec app php artisan migrate
 
 A aplicação fica disponível em `http://localhost:8000`.
 
+## Testes
+
+```bash
+docker compose exec app php artisan test
+```
+
+Os testes usam o banco MySQL isolado `trindtech_indicators_testing`, criado
+automaticamente na primeira inicialização do contêiner. O banco de
+desenvolvimento não é apagado pela suíte.
+
 > Este README será complementado nas próximas etapas com a carga inicial,
 > credenciais de demonstração e explicações do modelo de dados.
